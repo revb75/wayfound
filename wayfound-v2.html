@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wayfound — Your Healing Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Instrument+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --night: #0D0D12;
+  --night-mid: #16161F;
+  --night-soft: #1F1F2E;
+  --dusk: #2A2A3D;
+  --mist: #7A7A9A;
+  --mist-light: #ADADC8;
+  --star: #EEEEF5;
+  --gold: #C9A96E;
+  --gold-pale: #F0E6CE;
+  --teal: #6BBFB5;
+  --teal-pale: #C8EBE8;
+  --rose: #D4847A;
+  --rose-pale: #F5DDD9;
+  --border: rgba(255,255,255,0.07);
+  --border-soft: rgba(255,255,255,0.04);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%; overflow: hidden;
+  font-family: 'Instrument Sans', sans-serif;
+  background: var(--night);
+  color: var(--star);
+  font-size: 15px;
+}
+
+/* ── Ambient ── */
+.ambient {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(107,191,181,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 85% 100%, rgba(201,169,110,0.05) 0%, transparent 60%);
+}
+
+/* ── Shell ── */
+.shell {
+  position: fixed; inset: 0; z-index: 1;
+  display: flex; flex-direction: column;
+  max-width: 480px; margin: 0 auto;
+}
+
+/* ── Header ── */
+.header {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--night);
+}
+.wordmark {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px; font-weight: 400; letter-spacing: -0.02em;
+}
+.wordmark em { color: var(--gold); font-style: italic; }
+.plan-status {
+  font-size: 11px; color: var(--mist);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 12px; border: 1px solid var(--border);
+  border-radius: 20px; cursor: pointer;
+  transition: all 0.2s;
+}
+.plan-status.has-plan { border-color: rgba(201,169,110,0.3); color: var(--gold); }
+
+/* ── Tab strip ── */
+.tab-strip {
+  flex-shrink: 0;
+  display: flex; gap: 0;
+  overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--night);
+}
+.tab-strip::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 10px 18px;
+  font-size: 12px; font-weight: 400; letter-spacing: 0.02em;
+  color: var(--mist); white-space: nowrap;
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all 0.2s;
+  font-family: 'Instrument Sans', sans-serif;
+}
+.tab-btn:hover { color: var(--star); }
+.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.tab-btn.locked { opacity: 0.25; cursor: not-allowed; }
+.tab-btn .dot {
+  display: inline-block; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--teal);
+  margin-left: 5px; vertical-align: middle;
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+/* ── Main content area ── */
+.main {
+  flex: 1; overflow: hidden;
+  position: relative;
+}
+
+/* ── Chat view ── */
+.chat-view {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+}
+.messages {
+  flex: 1; overflow-y: auto;
+  padding: 20px 16px 8px;
+  display: flex; flex-direction: column; gap: 14px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.messages::-webkit-scrollbar { display: none; }
+
+/* Messages */
+.msg { display: flex; flex-direction: column; gap: 4px; max-width: 85%; }
+.msg.ai { align-self: flex-start; }
+.msg.user { align-self: flex-end; }
+.msg-name {
+  font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--mist);
+  padding: 0 4px;
+}
+.msg.user .msg-name { text-align: right; }
+.bubble {
+  padding: 12px 16px; border-radius: 18px;
+  font-size: 15px; line-height: 1.65; font-weight: 300;
+}
+.msg.ai .bubble {
+  background: var(--night-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px 18px 18px 18px;
+  color: var(--star);
+}
+.msg.ai.wayfound .bubble {
+  border-left: 2px solid var(--gold);
+}
+.msg.user .bubble {
+  background: rgba(201,169,110,0.12);
+  border: 1px solid rgba(201,169,110,0.18);
+  border-radius: 18px 18px 4px 18px;
+  color: var(--gold-pale);
+}
+
+/* Quick replies */
+.quick-replies {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 4px 0 8px;
+  align-self: flex-start; max-width: 100%;
+}
+.qr {
+  padding: 8px 14px; border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--mist-light);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 13px; cursor: pointer; transition: all 0.2s;
+  font-weight: 300;
+}
+.qr:hover, .qr:active {
+  border-color: rgba(107,191,181,0.4);
+  background: rgba(107,191,181,0.08);
+  color: var(--teal-pale);
+}
+
+/* Typing indicator */
+.typing {
+  align-self: flex-start; display: none;
+}
+.typing.show { display: flex; }
+.typing-inner {
+  background: var(--night-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px 18px 18px 18px;
+  padding: 12px 16px; display: flex; gap: 5px; align-items: center;
+}
+.td {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--mist);
+  animation: tdp 1.4s ease-in-out infinite;
+}
+.td:nth-child(2) { animation-delay: 0.2s; }
+.td:nth-child(3) { animation-delay: 0.4s; }
+@keyframes tdp { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+
+/* Plan generating */
+.plan-generating {
+  align-self: center;
+  background: rgba(201,169,110,0.08);
+  border: 1px solid rgba(201,169,110,0.2);
+  border-radius: 12px; padding: 16px 20px;
+  text-align: center; display: none;
+}
+.plan-generating.show { display: block; }
+.plan-generating-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px; color: var(--gold);
+  animation: fadeOscillate 2s ease-in-out infinite;
+}
+@keyframes fadeOscillate { 0%,100%{opacity:0.6} 50%{opacity:1} }
+
+/* ── Input bar ── */
+.input-bar {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  padding-bottom: calc(10px + var(--safe-bottom));
+  border-top: 1px solid var(--border-soft);
+  background: var(--night);
+  display: flex; gap: 8px; align-items: flex-end;
+}
+.chat-input {
+  flex: 1;
+  background: var(--night-soft);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 11px 18px;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 15px; color: var(--star);
+  outline: none; resize: none;
+  line-height: 1.5; max-height: 120px;
+  overflow-y: auto; font-weight: 300;
+  transition: border-color 0.2s;
+  -webkit-overflow-scrolling: touch;
+}
+.chat-input:focus { border-color: rgba(201,169,110,0.3); }
+.chat-input::placeholder { color: var(--mist); }
+.send-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--gold); border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+}
+.send-btn:active { transform: scale(0.93); }
+.send-btn svg { width: 16px; height: 16px; }
+
+/* ── Panel views ── */
+.panel-view {
+  position: absolute; inset: 0;
+  overflow-y: auto; padding: 20px 16px;
+  display: none; flex-direction: column; gap: 16px;
+  -webkit-overflow-scrolling: touch;
+  background: var(--night);
+}
+.panel-view.active { display: flex; }
+.panel-view::-webkit-scrollbar { display: none; }
+
+/* Plan panel */
+.plan-header {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px; line-height: 1.3; color: var(--star);
+}
+.plan-sub { font-size: 13px; color: var(--mist); margin-top: 4px; }
+.plan-day {
+  background: var(--night-mid);
+  border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+.plan-day-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px; font-weight: 500; color: var(--mist-light);
+  letter-spacing: 0.04em;
+}
+.plan-day-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+.plan-item { display: flex; gap: 12px; align-items: flex-start; }
+.plan-item-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0; margin-top: 1px;
+}
+.plan-item-icon.mind { background: rgba(107,191,181,0.12); }
+.plan-item-icon.body { background: rgba(201,169,110,0.12); }
+.plan-item-icon.content { background: rgba(212,132,122,0.12); }
+.plan-item-text { font-size: 14px; color: var(--mist-light); line-height: 1.6; font-weight: 300; }
+.plan-item-text strong { color: var(--star); font-weight: 500; display: block; font-size: 13px; margin-bottom: 2px; }
+
+/* Dimension panels */
+.dim-card {
+  background: var(--night-mid);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.dim-label {
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.dim-label.mind { color: var(--teal); }
+.dim-label.body { color: var(--gold); }
+.dim-label.content { color: var(--rose); }
+.dim-title { font-family: 'Playfair Display', serif; font-size: 18px; line-height: 1.3; }
+.dim-body { font-size: 14px; color: var(--mist-light); line-height: 1.7; font-weight: 300; }
+.dim-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.dim-action {
+  display: flex; gap: 10px; align-items: center;
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--night-soft); border: 1px solid var(--border-soft);
+}
+.dim-action-check {
+  width: 18px; height: 18px; border-radius: 5px;
+  border: 1px solid var(--border); flex-shrink: 0;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.dim-action-check.done { background: var(--teal); border-color: var(--teal); }
+.dim-action-text { font-size: 13px; color: var(--mist-light); font-weight: 300; }
+
+/* Log panel */
+.log-empty { font-size: 14px; color: var(--mist); text-align: center; padding: 40px 0; font-style: italic; }
+.log-entry {
+  background: var(--night-mid); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.log-date { font-size: 11px; color: var(--mist); letter-spacing: 0.05em; }
+.log-text { font-size: 14px; color: var(--mist-light); line-height: 1.6; font-weight: 300; }
+
+/* Crisis banner */
+.crisis-banner {
+  display: none;
+  background: rgba(212,132,122,0.1);
+  border: 1px solid rgba(212,132,122,0.25);
+  border-radius: 12px; padding: 14px 16px;
+  font-size: 13px; color: var(--rose-pale); line-height: 1.6;
+  margin: 0 16px;
+}
+.crisis-banner.show { display: block; }
+.crisis-banner a { color: var(--rose); }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.msg, .qr { animation: fadeUp 0.3s ease forwards; }
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+
+<div class="shell">
+  <!-- Header -->
+  <div class="header">
+    <div class="wordmark">way<em>found</em>.space</div>
+    <div class="plan-status" id="plan-status" onclick="switchTab('plan')">No plan yet</div>
+  </div>
+
+  <!-- Tab strip -->
+  <div class="tab-strip">
+    <button class="tab-btn active" onclick="switchTab('chat', this)" id="tab-chat">Coach</button>
+    <button class="tab-btn locked" onclick="switchTab('plan', this)" id="tab-plan">Plan</button>
+    <button class="tab-btn locked" onclick="switchTab('mind', this)" id="tab-mind">Mind</button>
+    <button class="tab-btn locked" onclick="switchTab('body', this)" id="tab-body">Body</button>
+    <button class="tab-btn locked" onclick="switchTab('content', this)" id="tab-content">Contentment</button>
+    <button class="tab-btn" onclick="switchTab('log', this)" id="tab-log">Log</button>
+  </div>
+
+  <!-- Crisis banner -->
+  <div class="crisis-banner" id="crisis-banner">
+    <strong style="color:var(--rose)">You mentioned something serious.</strong> Before we go further — if you're having thoughts of hurting yourself, please reach out: <a href="tel:988">988 Lifeline</a> (call or text) or text HOME to <a href="sms:741741">741741</a>. I'm still here when you're ready.
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Chat -->
+    <div class="chat-view" id="view-chat">
+      <div class="messages" id="messages">
+        <!-- Welcome message injected by JS -->
+      </div>
+      <div class="typing show" id="typing" style="display:none;padding:0 16px 8px;">
+        <div class="typing-inner">
+          <div class="td"></div><div class="td"></div><div class="td"></div>
+        </div>
+      </div>
+      <div class="plan-generating" id="plan-generating">
+        <div class="plan-generating-text">Building your healing plan&hellip;</div>
+      </div>
+    </div>
+
+    <!-- Plan -->
+    <div class="panel-view" id="view-plan">
+      <div class="plan-header" id="plan-header">Your 7-day plan</div>
+      <div class="plan-sub" id="plan-sub">Generated based on your intake</div>
+      <div id="plan-days"></div>
+    </div>
+
+    <!-- Mind -->
+    <div class="panel-view" id="view-mind">
+      <div id="mind-content"><div class="log-empty">Complete your intake to unlock.</div></div>
+    </div>
+
+    <!-- Body -->
+    <div class="panel-view" id="view-body">
+      <div id="body-content"><div class="log-empty">Complete your intake to unlock.</div></div>
+    </div>
+
+    <!-- Contentment -->
+    <div class="panel-view" id="view-content">
+      <div id="content-content"><div class="log-empty">Complete your intake to unlock.</div></div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel-view" id="view-log">
+      <div id="log-entries"><div class="log-empty">No sessions yet. Your history will appear here.</div></div>
+    </div>
+
+  </div>
+
+  <!-- Input bar -->
+  <div class="input-bar">
+    <textarea class="chat-input" id="chat-input" placeholder="Talk to Wayfound&hellip;" rows="1"
+      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" onclick="sendMessage()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="#0D0D12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 8H2M14 8L9 3M14 8L9 13"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+// ── State ──
+const S = {
+  phase: 'intake',   // intake | plan-gen | session
+  intakeStep: 0,
+  intakeData: {},
+  chatHistory: [],
+  plan: null,
+  hasPlan: false,
+  crisisDetected: false
+};
+
+// ── Supabase stub (wire in when ready) ──
+// const SUPABASE_URL = 'https://tiscwmflavysvdxyadxe.supabase.co';
+// const SUPABASE_KEY = 'your-anon-key';
+// Table: wayfound_sessions (id, created_at, user_id, intake_data, plan_json, log)
+
+const INTAKE_QUESTIONS = [
+  {
+    key: 'opening',
+    ask: "Hey. I'm glad you're here.\n\nNo forms. No checkboxes. Just tell me — where are you right now? Mentally, physically, however you want to put it.",
+    replies: null
+  },
+  {
+    key: 'sleep',
+    ask: "Got it. Before we go further — how's your sleep been? And your energy through the day?",
+    replies: ['Sleeping okay, energy is low', 'Poor sleep, exhausted', 'Sleep is fine actually', 'It varies a lot']
+  },
+  {
+    key: 'missing',
+    ask: "What feels most missing right now — in one word or one sentence. Don't overthink it.",
+    replies: ['Peace', 'Connection', 'Purpose', 'Energy', 'Confidence', 'Joy']
+  },
+  {
+    key: 'trigger',
+    ask: "What made today the day you showed up here?",
+    replies: ['Something happened recently', 'I\'ve been putting this off', 'I just hit a wall', 'Not sure, just felt like time']
+  }
+];
+
+const CBT_SYSTEM = `You are Wayfound — a warm, grounded whole-person wellness coach trained in CBT, motivational interviewing, and behavior change science. You live inside Wayfound.space, a mobile-first healing plan app.
+
+Your voice: Direct. Present. Real. Like a trusted friend who happens to know what they're talking about. Not clinical. Not cheerful. Just honest and warm.
+
+Your job right now depends on the phase:
+- INTAKE: Ask one question at a time. Listen deeply. Reflect back what you hear before asking the next question. Build trust fast.
+- PLAN GENERATION: Acknowledge everything shared, then tell the user their plan is being built.
+- SESSION: Coach them through their plan. CBT techniques: thought records, cognitive restructuring, behavioral activation, grounding, values clarification. Validate before reframing. Never lecture. Ask more than you tell.
+
+Rules:
+- Never diagnose. Never prescribe.
+- If crisis language detected (self-harm, hopelessness, suicidal ideation), respond with warmth, pause the session, provide 988 and Crisis Text Line.
+- Responses: 2-4 sentences max unless they need more.
+- Always end with either a question or a clear next step.
+- Never say "I understand how you feel" — show it instead.`;
+
+// ── Init ──
+window.addEventListener('load', () => {
+  renderLog();
+  setTimeout(() => addAIMessage(INTAKE_QUESTIONS[0].ask, null, true), 400);
+});
+
+// ── Messaging ──
+function addAIMessage(text, replies = null, isWayfound = false) {
+  const msgs = document.getElementById('messages');
+
+  const div = document.createElement('div');
+  div.className = 'msg ai' + (isWayfound ? ' wayfound' : '');
+  div.innerHTML = `<div class="msg-name">Wayfound</div><div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
+  msgs.appendChild(div);
+
+  if (replies && replies.length) {
+    const qr = document.createElement('div');
+    qr.className = 'quick-replies';
+    replies.forEach(r => {
+      const btn = document.createElement('button');
+      btn.className = 'qr';
+      btn.textContent = r;
+      btn.onclick = () => { clearReplies(); sendUserMessage(r); };
+      qr.appendChild(btn);
+    });
+    msgs.appendChild(qr);
+  }
+
+  scrollDown();
+}
+
+function addUserMessage(text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<div class="msg-name">You</div><div class="bubble">${text}</div>`;
+  msgs.appendChild(div);
+  scrollDown();
+}
+
+function clearReplies() {
+  document.querySelectorAll('.quick-replies').forEach(el => el.remove());
+}
+
+function scrollDown() {
+  const msgs = document.getElementById('messages');
+  setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 50);
+}
+
+function showTyping() {
+  const t = document.getElementById('typing');
+  t.style.display = 'flex';
+  scrollDown();
+}
+function hideTyping() { document.getElementById('typing').style.display = 'none'; }
+
+// ── Send ──
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = ''; autoResize(input);
+  clearReplies();
+  sendUserMessage(text);
+}
+
+async function sendUserMessage(text) {
+  addUserMessage(text);
+
+  // Crisis detection (simple keyword check)
+  const crisisWords = ['kill myself', 'end it', 'suicide', 'self harm', 'hurt myself', 'not worth living', 'want to die'];
+  if (crisisWords.some(w => text.toLowerCase().includes(w))) {
+    S.crisisDetected = true;
+    document.getElementById('crisis-banner').classList.add('show');
+  }
+
+  if (S.phase === 'intake') {
+    await handleIntake(text);
+  } else {
+    await handleSession(text);
+  }
+}
+
+async function handleIntake(text) {
+  const step = S.intakeStep;
+  const questionKey = INTAKE_QUESTIONS[step]?.key;
+  if (questionKey) S.intakeData[questionKey] = text;
+  S.intakeStep++;
+
+  S.chatHistory.push({ role: 'user', content: text });
+
+  if (S.intakeStep >= INTAKE_QUESTIONS.length) {
+    // All intake done — generate plan
+    showTyping();
+    await new Promise(r => setTimeout(r, 800));
+    hideTyping();
+    addAIMessage("That's everything I need. Give me a moment — I'm building your plan now.", null, true);
+    document.getElementById('plan-generating').classList.add('show');
+    S.phase = 'plan-gen';
+    await generatePlan();
+  } else {
+    // Next intake question — but first get AI to reflect
+    showTyping();
+    try {
+      const nextQ = INTAKE_QUESTIONS[S.intakeStep];
+      const res = await callAI([
+        ...S.chatHistory,
+        { role: 'assistant', content: `(Internal: reflect on what user just said, then ask: "${nextQ.ask}" — weave it in naturally, don't just paste the question)` }
+      ], `You are in INTAKE phase. The user just said: "${text}". Briefly reflect what you heard (1 sentence, genuine), then ask the next question naturally: "${nextQ.ask}". Keep it under 3 sentences total.`);
+      hideTyping();
+      S.chatHistory.push({ role: 'assistant', content: res });
+      addAIMessage(res, nextQ.replies, true);
+    } catch(e) {
+      hideTyping();
+      addAIMessage(INTAKE_QUESTIONS[S.intakeStep].ask, INTAKE_QUESTIONS[S.intakeStep].replies, true);
+    }
+  }
+}
+
+async function generatePlan() {
+  try {
+    const intakeSummary = Object.entries(S.intakeData).map(([k,v]) => `${k}: ${v}`).join('\n');
+    const res = await callAI([
+      { role: 'user', content: `Generate a healing plan based on this intake:\n${intakeSummary}` }
+    ], `You generate whole-person healing plans for Wayfound.space. Respond ONLY with valid JSON — no markdown, no explanation.
+
+Format:
+{
+  "title": "Short personalized plan title (e.g. 'Finding your ground again')",
+  "subtitle": "One honest sentence about what this plan is designed to do",
+  "mind": {
+    "focus": "The core mental pattern to work on",
+    "insight": "2-3 sentences of CBT-grounded insight about their mental state",
+    "actions": ["Action 1 (specific, doable today)", "Action 2", "Action 3"]
+  },
+  "body": {
+    "focus": "The physical dimension to address",
+    "insight": "2-3 sentences about the body-mind connection relevant to them",
+    "actions": ["Action 1", "Action 2", "Action 3"]
+  },
+  "contentment": {
+    "focus": "What contentment looks like for them right now",
+    "insight": "2-3 sentences about what contentment actually means in their situation",
+    "actions": ["Action 1", "Action 2", "Action 3"]
+  },
+  "days": [
+    { "day": "Day 1", "label": "Short evocative label", "mind": "Specific task", "body": "Specific task", "contentment": "Specific task" },
+    { "day": "Day 2", "label": "Short evocative label", "mind": "Specific task", "body": "Specific task", "contentment": "Specific task" },
+    { "day": "Day 3", "label": "Short evocative label", "mind": "Specific task", "body": "Specific task", "contentment": "Specific task" },
+    { "day": "Day 4", "label": "Short evocative label", "mind": "Specific task", "body": "Specific task", "contentment": "Specific task" },
+    { "day": "Day 5", "label": "Short evocative label", "mind": "Specific task", "body": "Specific task", "contentment": "Specific task" },
+    { "day": "Day 6", "label": "Short evocative label", "mind": "Specific task", "body": "Specific task", "contentment": "Specific task" },
+    { "day": "Day 7", "label": "Short evocative label", "mind": "Specific task", "body": "Specific task", "contentment": "Specific task" }
+  ]
+}`);
+
+    const clean = res.replace(/```json|```/g,'').trim();
+    S.plan = JSON.parse(clean);
+    S.hasPlan = true;
+    S.phase = 'session';
+
+    document.getElementById('plan-generating').classList.remove('show');
+    renderPlan();
+    unlockTabs();
+    saveSession();
+
+    S.chatHistory.push({
+      role: 'assistant',
+      content: `Your plan is ready. It's built around what you shared — specific to where you are right now, not generic advice.`
+    });
+    addAIMessage(`Your plan is ready. Tap <strong>Plan</strong> above to see it — or stay here and talk through anything on your mind.`, null, true);
+
+  } catch(e) {
+    document.getElementById('plan-generating').classList.remove('show');
+    addAIMessage("Something went wrong building your plan. Want to try again?", ['Yes, try again', 'Just talk to me'], true);
+  }
+}
+
+async function handleSession(text) {
+  S.chatHistory.push({ role: 'user', content: text });
+  showTyping();
+  try {
+    const planContext = S.plan ? `\nUser's plan focus — Mind: ${S.plan.mind.focus}, Body: ${S.plan.body.focus}, Contentment: ${S.plan.contentment.focus}` : '';
+    const res = await callAI(S.chatHistory, CBT_SYSTEM + planContext);
+    hideTyping();
+    S.chatHistory.push({ role: 'assistant', content: res });
+    addAIMessage(res, null, true);
+  } catch(e) {
+    hideTyping();
+    addAIMessage("I'm here — something went wrong. Try again in a moment.", null, true);
+  }
+}
+
+// ── API ──
+async function callAI(messages, systemOverride = null) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemOverride || CBT_SYSTEM,
+      messages
+    })
+  });
+  const data = await res.json();
+  if (!data.content) throw new Error('No content');
+  return data.content.find(b => b.type === 'text')?.text || '';
+}
+
+// ── Render plan ──
+function renderPlan() {
+  if (!S.plan) return;
+  const p = S.plan;
+
+  document.getElementById('plan-header').textContent = p.title;
+  document.getElementById('plan-sub').textContent = p.subtitle;
+  document.getElementById('plan-status').textContent = 'View plan';
+  document.getElementById('plan-status').classList.add('has-plan');
+
+  // Days
+  const daysWrap = document.getElementById('plan-days');
+  daysWrap.innerHTML = '';
+  p.days.forEach(d => {
+    const div = document.createElement('div');
+    div.className = 'plan-day';
+    div.innerHTML = `
+      <div class="plan-day-header">${d.day} — ${d.label}</div>
+      <div class="plan-day-body">
+        <div class="plan-item">
+          <div class="plan-item-icon mind">🧠</div>
+          <div class="plan-item-text"><strong>Mind</strong>${d.mind}</div>
+        </div>
+        <div class="plan-item">
+          <div class="plan-item-icon body">⚡</div>
+          <div class="plan-item-text"><strong>Body</strong>${d.body}</div>
+        </div>
+        <div class="plan-item">
+          <div class="plan-item-icon content">✦</div>
+          <div class="plan-item-text"><strong>Contentment</strong>${d.contentment}</div>
+        </div>
+      </div>`;
+    daysWrap.appendChild(div);
+  });
+
+  // Dimension panels
+  renderDimension('mind', p.mind, 'mind');
+  renderDimension('body', p.body, 'body');
+  renderDimension('content', p.contentment, 'content');
+}
+
+function renderDimension(id, data, cls) {
+  const wrap = document.getElementById(id + '-content');
+  wrap.innerHTML = `
+    <div class="dim-card">
+      <div class="dim-label ${cls}">${cls === 'content' ? 'Contentment' : cls}</div>
+      <div class="dim-title">${data.focus}</div>
+      <div class="dim-body">${data.insight}</div>
+      <div class="dim-actions">
+        ${data.actions.map((a,i) => `
+          <div class="dim-action">
+            <div class="dim-action-check" onclick="toggleCheck(this)" id="${cls}-check-${i}"></div>
+            <div class="dim-action-text">${a}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function toggleCheck(el) {
+  el.classList.toggle('done');
+  if (el.classList.contains('done')) {
+    el.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#0D0D12" stroke-width="2" stroke-linecap="round"><path d="M2 5l2 2 4-4"/></svg>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+// ── Tabs ──
+function unlockTabs() {
+  ['plan','mind','body','content'].forEach(id => {
+    const btn = document.getElementById('tab-' + id);
+    btn.classList.remove('locked');
+    if (id === 'plan') {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      btn.appendChild(dot);
+    }
+  });
+}
+
+function switchTab(id, btn) {
+  if (btn && btn.classList.contains('locked')) return;
+
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel-view, .chat-view').forEach(v => {
+    v.classList.remove('active');
+    if (v.classList.contains('chat-view')) v.style.display = 'none';
+  });
+
+  if (id === 'chat') {
+    document.getElementById('view-chat').style.display = 'flex';
+    document.getElementById('chat-input').focus();
+  } else {
+    document.getElementById('view-' + id).classList.add('active');
+  }
+
+  if (btn) btn.classList.add('active');
+  else document.getElementById('tab-' + id)?.classList.add('active');
+
+  // Remove dot from plan tab when viewed
+  if (id === 'plan') {
+    const dot = document.querySelector('#tab-plan .dot');
+    if (dot) dot.remove();
+  }
+}
+
+// Init chat view
+document.getElementById('view-chat').style.display = 'flex';
+
+// ── Log ──
+function saveSession() {
+  const log = JSON.parse(localStorage.getItem('wf-log') || '[]');
+  log.unshift({
+    date: new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }),
+    title: S.plan?.title || 'Session',
+    summary: S.plan?.subtitle || ''
+  });
+  localStorage.setItem('wf-log', JSON.stringify(log.slice(0, 20)));
+  renderLog();
+}
+
+function renderLog() {
+  const log = JSON.parse(localStorage.getItem('wf-log') || '[]');
+  const wrap = document.getElementById('log-entries');
+  if (!log.length) return;
+  wrap.innerHTML = '';
+  log.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    div.innerHTML = `<div class="log-date">${e.date}</div><div class="log-text"><strong style="color:var(--star);font-weight:500">${e.title}</strong><br>${e.summary}</div>`;
+    wrap.appendChild(div);
+  });
+}
+
+// ── Utils ──
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+</script>
+</body>
+</html>
